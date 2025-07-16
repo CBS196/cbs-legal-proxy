@@ -9,9 +9,9 @@ export default async function handler(req, res) {
     return;
   }
 
-  // 2. Definim la URL del nostre webhook REAL de Make.com.
-  // AQUESTA ÉS LA URL ORIGINAL QUE FALLAVA DES DEL GPT.
-  const makeWebhookUrl = 'https://hook.eu2.make.com/i1xd18orqw0yalhnevg1rtxa65mbqpir';
+  // 2. Definim la URL del nostre NOU webhook de Make.com.
+  // Aquesta és la nova URL que hem generat al PAS 96.
+  const makeWebhookUrl = 'https://hook.eu2.make.com/xxrmycgfo15zba1sm6g64l9xyttf5f5v';
 
   try {
     // 3. Extraiem els paràmetres que ens envia el GPT a la URL.

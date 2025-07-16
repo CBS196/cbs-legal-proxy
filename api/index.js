@@ -1,57 +1,52 @@
 // Aquest és el codi per a la nostra funció de servidor proxy.
-// S'executarà a Vercel i actuarà com un pont entre el GPT i Make.com.
+// VERSIÓ DE DEPURACIÓ: Afegeix més registres (logs) per veure cada pas.
 
 export default async function handler(req, res) {
-  // 1. Verifiquem que la petició sigui de tipus POST, com envia l'Acció del GPT.
-  // Si no ho és, retornem un error.
+  console.log('--- Proxy function started ---');
+  console.log('Request Method:', req.method);
+
   if (req.method !== 'POST') {
+    console.log('Error: Method was not POST. Rejecting.');
     res.status(405).json({ error: 'Method Not Allowed' });
     return;
   }
 
-  // 2. Definim la URL del nostre NOU webhook de Make.com.
-  // Aquesta és la nova URL que hem generat al PAS 96.
   const makeWebhookUrl = 'https://hook.eu2.make.com/xxrmycgfo15zba1sm6g64l9xyttf5f5v';
+  console.log('Target Make.com URL:', makeWebhookUrl);
 
   try {
-    // 3. Extraiem els paràmetres que ens envia el GPT a la URL.
-    // L'Acció del GPT els envia com a "query parameters".
     const { queryText, intensityLevel, caseFiles } = req.query;
+    console.log('Received query parameters:', req.query);
 
-    // 4. Construïm el cos (body) de la nova petició que enviarem a Make.com.
-    // Make.com espera un objecte JSON.
     const payload = {
       queryText: queryText,
-      intensityLevel: parseInt(intensityLevel, 10), // Assegurem que sigui un número
+      intensityLevel: parseInt(intensityLevel, 10),
       caseFiles: caseFiles,
     };
+    console.log('Sending this payload to Make.com:', JSON.stringify(payload));
 
-    // 5. Fem la petició POST al webhook de Make.com des del nostre servidor proxy.
-    // Aquesta petició SÍ que funcionarà, perquè no surt des de la xarxa restringida d'OpenAI.
     const makeResponse = await fetch(makeWebhookUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
-    // 6. Verifiquem si la petició a Make.com ha tingut èxit.
+    // Registrem l'estat de la resposta de Make.com, sigui quina sigui.
+    console.log('Received response status from Make.com:', makeResponse.status);
+    const responseBody = await makeResponse.text();
+    console.log('Received response body from Make.com:', responseBody);
+
     if (!makeResponse.ok) {
-      // Si Make.com retorna un error, el registrem i l'enviem de tornada al GPT.
-      const errorText = await makeResponse.text();
-      console.error('Error from Make.com:', errorText);
-      res.status(makeResponse.status).json({ error: 'Error forwarding request to Make.com', details: errorText });
+      console.error('Make.com response was NOT OK. Forwarding error to GPT.');
+      res.status(makeResponse.status).json({ error: 'Error from Make.com', details: responseBody });
       return;
     }
 
-    // 7. Si tot ha anat bé, enviem una resposta d'èxit al GPT.
-    // Aquesta és la resposta que el GPT mostrarà a l'usuari.
-    res.status(200).json({ status: 'success', message: 'Query forwarded to Make.com successfully' });
+    console.log('Make.com response was OK. Sending success back to GPT.');
+    res.status(200).json({ status: 'success', message: 'Query forwarded successfully', make_response: responseBody });
 
   } catch (error) {
-    // 8. Si hi ha qualsevol altre error en el nostre proxy, el capturem.
-    console.error('Error in proxy function:', error);
+    console.error('--- FATAL ERROR in proxy function ---:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 }
